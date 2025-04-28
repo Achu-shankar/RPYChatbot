@@ -10,6 +10,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { ThemeSwitcher } from '@/components/theme-switcher';
+import AuthButton from '@/components/header-auth';
 
 export default function ChatLayout({ children }: Readonly<{
   children: React.ReactNode;
@@ -27,14 +28,14 @@ export default function ChatLayout({ children }: Readonly<{
         <SidebarProvider>
             <AppSidebar />
             <SidebarInset>
-              <header className="flex justify-between h-16 shrink-0 items-center gap-2">
-                <div className="flex  justify-between items-center gap-2 px-4">
-                  
-                  <SidebarTrigger className="-ml-1" />
+              <header className="flex justify-between items-center h-16 shrink-0 px-4">
+                <SidebarTrigger className="-ml-1" />
+                <div className="flex items-center gap-3 pr-4">
                   <ThemeSwitcher />
+                  <AuthButton />
                 </div>
               </header>
-              <div className="flex h-[calc(100vh-6rem)] w-full overflow-hidden">
+              <div className="flex h-[calc(100vh-5rem)] w-full overflow-hidden">
                 <div className="flex-1 h-full w-full overflow-hidden">
                   {children}
                 </div>

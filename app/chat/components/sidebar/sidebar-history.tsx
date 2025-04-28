@@ -149,6 +149,7 @@ function ChatItemGroup({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                   <Button 
+                    asChild={true}
                     variant="ghost" 
                     size="icon" 
                     className={`h-8 w-8 ml-auto ${hoveredChatId === chat.id ? 'visible' : 'invisible'}`}

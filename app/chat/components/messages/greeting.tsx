@@ -25,7 +25,7 @@ export const Greeting = () => {
         transition={{ delay: 0.6 }}
         className="text-3xl text-zinc-500"
       >
-        Ready to learn something new?
+        Welcome to DSPA assistant!
       </motion.div>
     </div>
   );

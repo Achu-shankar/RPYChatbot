@@ -48,35 +48,19 @@ import { saveOrUpdateChatMessages } from '@/app/chat/lib/db/queries';
       const supabase = await createClient();
       const { data: { user } } = await supabase.auth.getUser();
   
-      if (!user?.id) {
-        return new Response('Unauthorized', { status: 401 });
-      }
-  
-      const userMessage = getMostRecentUserMessage(messages);
-  
+      // if (!user?.id) {
+      //   return new Response('Unauthorized', { status: 401 });
+      // }
+
+      const userMessage = getMostRecentUserMessage(messages)
       if (!userMessage) {
         return new Response('No user message found', { status: 400 });
       }
-      
-  
-    //   const chat = await getChatById({ id });
-  
-    //   if (!chat) {
-    //     const title = await generateTitleFromUserMessage({
-    //       message: userMessage,
-    //     });
-  
-    //     await saveChat({ id, userId: session.user.id, title });
-    //   } else {
-    //     if (chat.userId !== session.user.id) {
-    //       return new Response('Forbidden', { status: 403 });
-    //     }
-    //   }
 
-    await saveOrUpdateChatMessages(user.id, id, [userMessage]);
+      if (user){
+       await saveOrUpdateChatMessages(user.id, id, [userMessage]);
+      }
   
-
-
   
       return createDataStreamResponse({
         execute: (dataStream) => {

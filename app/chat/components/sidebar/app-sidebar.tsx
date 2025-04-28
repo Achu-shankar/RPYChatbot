@@ -36,7 +36,7 @@ export function AppSidebar() {
   }, []);
 
   return (
-    <Sidebar collapsible="icon" variant="inset">
+    <Sidebar collapsible="icon" >
       <SidebarHeader className="pb-0">
         <div className={`flex items-center py-2 gap-2 `}>
           {/* {state !== "collapsed" && */}
@@ -44,7 +44,7 @@ export function AppSidebar() {
             <span className="text-lg bg-white drop-shadow-md border border-gray-200 rounded-full font-semibold"><Image src="/socr_logo.png" alt="logo" width={32} height={32} /></span>
           </div>
           {/* } */}
-          {state !== "collapsed" && <span className="text-xl font-bold">DSPA Bot</span>}
+          {state !== "collapsed" && <span className="text-xl font-bold">DSPA Assistant</span>}
           {/* <Button
             variant="ghost"
             size="icon"
@@ -79,9 +79,9 @@ export function AppSidebar() {
         <SidebarHistory user={user} sidebarState={state} />
       </SidebarContent>
       
-      <SidebarFooter>
+      {/* <SidebarFooter>
         {user && <SidebarUserNav user={user} />}
-      </SidebarFooter>
+      </SidebarFooter> */}
       
       <SidebarRail />
     </Sidebar>
