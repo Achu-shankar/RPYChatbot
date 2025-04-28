@@ -1,4 +1,7 @@
 import type { NextConfig } from "next";
+// Import the patched plugin
+// @ts-ignore - Using require as it might not have TS types
+const { PyodidePlugin } = require("@pyodide/webpack-plugin");
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -25,6 +28,11 @@ const nextConfig: NextConfig = {
             key: 'Cross-Origin-Embedder-Policy',
             value: 'require-corp',
           },
+          // Updated CSP: Added img-src directive allowing 'self', CDN, and data: URLs
+          {
+            key: 'Content-Security-Policy',
+            value: "default-src 'self' https://cdn.jsdelivr.net; script-src 'self' 'unsafe-eval' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; img-src 'self' https://cdn.jsdelivr.net data:; child-src blob:; connect-src 'self' https://cdn.jsdelivr.net https://*.supabase.co;"
+          },
         ],
       },
     ];
@@ -38,6 +46,31 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   
+  // Update webpack configuration based on the article
+  webpack: (config, { isServer }) => {
+    // Base experiments for WebAssembly
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+      layers: true,
+      topLevelAwait: true,
+    };
+    
+    if (!isServer) {
+      // Add Pyodide plugin only for the client bundle
+      config.plugins.push(new PyodidePlugin());
+      // Prevent bundling node-fetch on the client
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        "node-fetch": false,
+      };
+    } else {
+      // Mark pyodide as external for the server bundle
+      config.externals = ["pyodide", ...(config.externals || [])];
+    }
+    
+    return config;
+  },
 };
 
 export default nextConfig;

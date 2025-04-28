@@ -3,8 +3,17 @@ import { memo, useMemo, useCallback } from 'react';
 import ReactMarkdown, { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm'; // Recommended plugin for tables, etc.
 import rehypeRaw from 'rehype-raw';
-import { EnhancedCodeBlock } from './enhanced-code-block';
 import Link from 'next/link';
+import dynamic from 'next/dynamic'; // Import dynamic
+
+// Dynamically import EnhancedCodeBlock with SSR disabled
+const EnhancedCodeBlock = dynamic(
+  () => import('./enhanced-code-block').then((mod) => mod.EnhancedCodeBlock),
+  {
+    ssr: false, // Ensure this component only renders on the client
+    loading: () => <pre><code>Loading code block...</code></pre>, // Optional loading state
+  }
+);
 
 // Avoid expensive operations on every render
 const remarkPlugins = [remarkGfm];
@@ -33,7 +42,7 @@ function parseMarkdownIntoBlocks(markdown: string): string[] {
 // @ts-ignore - We need to ignore type checking for components due to ReactMarkdown's type limitations
 const markdownComponents: Partial<Components> = {
   // @ts-ignore - The inline prop is passed by ReactMarkdown but not in type defs
-  code: EnhancedCodeBlock,
+  code: EnhancedCodeBlock, // Use the dynamically imported component
   
   // Custom link handling
   // Keep all other component renderers the same

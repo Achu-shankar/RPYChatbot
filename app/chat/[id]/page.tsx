@@ -2,9 +2,11 @@
 import { notFound } from "next/navigation";
 import ChatArea from "../components/ChatArea";
 import { useFetchInitialMessages } from "../lib/hooks";
+import {useParams} from "next/navigation";
 
-export default function ChatPage({ params }: { params: { id: string } }) {
-    const sessionId = params.id;
+export default function ChatPage() {
+    const params = useParams();
+    const sessionId = params.id as string;
      // 1. Fetch initial messages using the custom hook
     const { initialMessages, isLoading: isLoadingMessages, error: fetchError } = useFetchInitialMessages(
         sessionId

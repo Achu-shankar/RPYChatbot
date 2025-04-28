@@ -1,9 +1,8 @@
 'use client';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import React, { useEffect, useState, useCallback, useRef, useMemo, memo } from 'react';
 import { ClipboardIcon, CheckIcon, PlayIcon, SquareIcon, Loader2Icon, DownloadIcon } from 'lucide-react';
-import { useCodeRuntimes, ExecutionResult } from '../../lib/useCodeRuntimes';
+import LightweightCodeBlock from './LightweightCodeBlock';
+import { useCodeRuntimesStore, ExecutionResult } from '../../lib/store/codeRuntimes';
 
 type CodeProps = {
   node?: any;
@@ -44,7 +43,7 @@ const CodeOutput = memo(({ result }: CodeOutputProps) => {
 
   if (!result) return null;
 
-  const hasOutput = result.stdout || result.stderr || result.error || result.returnValue !== undefined || result.plotData;
+  const hasOutput = result.stdout || result.stderr || result.error || result.returnValue !== undefined || result.plotData || result.pythonPlotBase64;
   if (!hasOutput) return null;
 
   return (
@@ -77,12 +76,24 @@ const CodeOutput = memo(({ result }: CodeOutputProps) => {
       )}
       {result.plotData && (
           <div className="p-2 border-b border-gray-200 dark:border-gray-700">
-              <strong className="font-medium text-gray-600 dark:text-gray-400">Plot Output:</strong>
+              <strong className="font-medium text-gray-600 dark:text-gray-400">R Plot Output:</strong>
               <div className="mt-1 flex justify-center items-center bg-white dark:bg-gray-900 p-1 rounded shadow-inner">
                   <canvas 
                       ref={canvasRef} 
                       className="max-w-full h-auto"
                   ></canvas>
+              </div>
+          </div>
+      )}
+      {result.pythonPlotBase64 && (
+          <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+              <strong className="font-medium text-gray-600 dark:text-gray-400">Python Plot Output:</strong>
+              <div className="mt-1 flex justify-center items-center bg-white dark:bg-gray-900 p-1 rounded shadow-inner">
+                  <img 
+                      src={`data:image/png;base64,${result.pythonPlotBase64}`}
+                      alt="Python Plot"
+                      className="max-w-full h-auto"
+                  />
               </div>
           </div>
       )}
@@ -146,7 +157,16 @@ export function EnhancedCodeBlock({
     };
   }, [className]);
 
-  const { python, r, loadRuntime, executeCode, readFileFromVFS } = useCodeRuntimes();
+  // --- Use Zustand Store --- 
+  // Select only the specific pieces of state and actions needed.
+  // This ensures the component only re-renders if these specific parts change.
+  const pythonStatus = useCodeRuntimesStore(state => state.python.status);
+  const rStatus = useCodeRuntimesStore(state => state.r.status);
+  const loadRuntime = useCodeRuntimesStore(state => state.loadRuntime);
+  const executeCode = useCodeRuntimesStore(state => state.executeCode);
+  const readFileFromVFS = useCodeRuntimesStore(state => state.readFileFromVFS);
+  const readFileFromPyodideVFS = useCodeRuntimesStore(state => state.readFileFromPyodideVFS);
+  // --- End Zustand Store Usage ---
 
   // Parse content only when children changes
   useEffect(() => {
@@ -187,11 +207,10 @@ export function EnhancedCodeBlock({
     }
   }, [content]);
 
-  // Optimized execute handler
+  // Enhanced handleExecute function with better error logging
   const handleExecute = useCallback(async () => {
-    if (!language || !isExecutable) return;
+    console.log("Execute button clicked for language:", language);
     
-    // Reset state in a single update
     setState(prev => ({
       ...prev,
       executionResult: null,
@@ -200,53 +219,40 @@ export function EnhancedCodeBlock({
       isExecutionPending: false
     }));
 
-    const targetRuntime = language === 'python' ? python : r;
-    const langKey = language as 'python' | 'r';
+    const currentStatus = language === 'python' ? pythonStatus : (language === 'r' ? rStatus : 'ready'); // JS doesn't need loading
+    const langKey = language as 'python' | 'r'; // Type assertion for store actions
 
     try {
       if (language === 'javascript') {
         setState(prev => ({ ...prev, status: 'executing' }));
         const result = await executeCode('javascript', content);
-        setState(prev => ({ 
-          ...prev, 
-          executionResult: result,
-          status: 'idle'
-        }));
+        setState(prev => ({ ...prev, executionResult: result, status: 'idle' }));
         return;
       }
 
-      if (targetRuntime.status === 'ready') {
+      if (currentStatus === 'ready') {
         setState(prev => ({ ...prev, status: 'executing' }));
-        const result = await executeCode(langKey, content);
-        setState(prev => ({ 
-          ...prev, 
-          executionResult: result,
-          status: 'idle'
-        }));
-      } else if (targetRuntime.status === 'loading' || targetRuntime.status === 'initializing') {
-        setState(prev => ({ 
-          ...prev, 
-          status: 'loading-runtime',
-          isExecutionPending: true 
-        }));
+        console.log(`Executing ${language} code with ready runtime`);
+        const result = await executeCode(langKey, content); 
+        // Zustand action executeCode now handles resetting the store status internally
+        setState(prev => ({ ...prev, executionResult: result, status: 'idle' }));
+      } else if (currentStatus === 'loading' || currentStatus === 'initializing') {
+        console.log(`${language} runtime is currently loading`);
+        setState(prev => ({ ...prev, status: 'loading-runtime', isExecutionPending: true }));
         return; 
-      } else if (targetRuntime.status === 'error') {
-        setState(prev => ({ 
-          ...prev, 
-          errorMessage: `Cannot execute: ${language} runtime failed to load previously.`,
-          status: 'error'
-        }));
+      } else if (currentStatus === 'error') {
+        console.error(`${language} runtime failed to load previously.`);
+        setState(prev => ({ ...prev, errorMessage: `Cannot execute: ${language} runtime failed to load previously.`, status: 'error' }));
         return;
-      } else {
-        setState(prev => ({ 
-          ...prev, 
-          status: 'loading-runtime',
-          isExecutionPending: true
-        }));
-        
+      } else { // Status is uninitialized
+        console.log(`Initializing ${language} runtime for the first time`);
+        setState(prev => ({ ...prev, status: 'loading-runtime', isExecutionPending: true }));
         try {
-          await loadRuntime(langKey);
+          await loadRuntime(langKey); // Call the store action
+          // Status updates will trigger the useEffect below when ready/error
         } catch (loadError: any) {
+          console.error(`Error loading ${language} runtime:`, loadError);
+          // This catch might be less likely if loadRuntime handles its own errors
           setState(prev => ({ 
             ...prev, 
             errorMessage: loadError.message || `Failed to initiate runtime loading.`,
@@ -256,29 +262,26 @@ export function EnhancedCodeBlock({
         }
       }
     } catch (error: any) {
+      console.error(`Error executing ${language} code:`, error);
       const message = error.message || 'An unexpected error occurred';
       setState(prev => ({ 
         ...prev, 
         errorMessage: message,
-        executionResult: { 
-          stdout: '', 
-          stderr: (error.stack || ''), 
-          error: message 
-        },
+        // executionResult can be set here if needed for displaying execution context errors
         status: 'error',
         isExecutionPending: false
       }));
     }
-  }, [language, isExecutable, content, python, r, loadRuntime, executeCode]);
+  }, [language, isExecutable, content, pythonStatus, rStatus, loadRuntime, executeCode]); // Depend on selected statuses and actions
 
-  // Effect to handle pending execution state
+  // Effect to handle pending execution state, depends on store status
   useEffect(() => {
     if (!isExecutionPending || !language || language === 'javascript') return;
 
-    const targetRuntime = language === 'python' ? python : r;
+    const currentStatus = language === 'python' ? pythonStatus : rStatus;
     const langKey = language as 'python' | 'r';
 
-    if (targetRuntime.status === 'ready') {
+    if (currentStatus === 'ready') {
       setState(prev => ({ ...prev, status: 'executing', isExecutionPending: false }));
 
       executeCode(langKey, content)
@@ -290,38 +293,52 @@ export function EnhancedCodeBlock({
           setState(prev => ({ 
             ...prev,
             errorMessage: message,
-            executionResult: { 
-              stdout: '', 
-              stderr: (execError.stack || ''), 
-              error: message, 
-              plotData: null, 
-              generatedFilename: null 
-            },
+            // executionResult can be set here to show error details
             status: 'error'
           }));
         });
-    } else if (targetRuntime.status === 'error') {
+    } else if (currentStatus === 'error') {
+      // Get error from store state if possible, otherwise use generic message
+      // Note: Need to select error from store if detailed msg is needed here
+      // const error = useCodeRuntimesStore(state => language === 'python' ? state.python.error : state.r.error);
       setState(prev => ({ 
         ...prev,
-        errorMessage: targetRuntime.error?.message || `Runtime failed to load.`,
+        errorMessage: `Runtime for ${language} failed to load.`,
         status: 'error',
         isExecutionPending: false
       }));
     }
-  }, [language, python.status, r.status, isExecutionPending, content, executeCode]);
+    // Dependency on store statuses triggers this effect when loading completes
+  }, [language, pythonStatus, rStatus, isExecutionPending, content, executeCode]);
 
-  // Optimized download handler
+  // Optimized download handler using Zustand actions based on language
   const handleDownload = useCallback(async (filename: string | null | undefined) => {
-    if (!filename || isDownloading) return;
+    if (!filename || isDownloading || !language) return; // Added check for language
 
     setState(prev => ({ ...prev, isDownloading: true, errorMessage: null }));
 
     try {
-      const fileData = await readFileFromVFS(filename);
-      if (!fileData) {
-        throw new Error(`File not found or could not be read.`);
+      let fileData: Uint8Array | null = null;
+      
+      // --- Call the appropriate VFS reading function based on language ---
+      if (language === 'python') {
+        console.log(`[Download] Attempting to read "${filename}" from Pyodide VFS...`);
+        fileData = await readFileFromPyodideVFS(filename); 
+      } else if (language === 'r') {
+        console.log(`[Download] Attempting to read "${filename}" from WebR VFS...`);
+        fileData = await readFileFromVFS(filename); 
+      } else {
+        throw new Error(`File download not supported for language: ${language}`);
       }
+      // ------------------------------------------------------------------
 
+      if (!fileData) {
+        throw new Error(`File "${filename}" not found or could not be read from the ${language} virtual filesystem.`);
+      }
+      
+      console.log(`[Download] Successfully read ${fileData.length} bytes for "${filename}". Creating Blob...`);
+
+      // --- Determine MIME type (existing logic) ---
       let mimeType = 'application/octet-stream';
       const extension = filename.split('.').pop()?.toLowerCase();
       if (extension === 'pdf') mimeType = 'application/pdf';
@@ -329,6 +346,9 @@ export function EnhancedCodeBlock({
       else if (extension === 'png') mimeType = 'image/png';
       else if (extension === 'jpg' || extension === 'jpeg') mimeType = 'image/jpeg';
       else if (extension === 'txt') mimeType = 'text/plain';
+      else if (extension === 'pptx') mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      else if (extension === 'xlsx') mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      // ---------------------------------------------
 
       const blob = new Blob([fileData], { type: mimeType });
       const url = URL.createObjectURL(blob);
@@ -339,8 +359,10 @@ export function EnhancedCodeBlock({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      console.log(`[Download] File "${filename}" download triggered.`);
 
     } catch (error: any) {
+      console.error(`[Download] Error downloading file "${filename}":`, error);
       setState(prev => ({ 
         ...prev, 
         errorMessage: error.message || 'Failed to download file.'
@@ -348,7 +370,8 @@ export function EnhancedCodeBlock({
     } finally {
       setState(prev => ({ ...prev, isDownloading: false }));
     }
-  }, [readFileFromVFS, isDownloading]);
+    // Add language and the new VFS reader to dependencies
+  }, [language, readFileFromVFS, readFileFromPyodideVFS, isDownloading]);
 
   // Early return for inline code
   if (inline === true) {
@@ -362,21 +385,22 @@ export function EnhancedCodeBlock({
     );
   }
   
-  // Only calculate these values when needed and their dependencies change
+  // Use selected store statuses for UI logic
   const isLoadingRuntime = useMemo(() => {
+    const currentStatus = language === 'python' ? pythonStatus : (language === 'r' ? rStatus : 'ready');
     return blockStatus === 'loading-runtime' || 
-      (language !== 'javascript' && (language === 'python' ? python.status : r.status) === 'loading') || 
-      (language !== 'javascript' && (language === 'python' ? python.status : r.status) === 'initializing');
-  }, [blockStatus, language, python.status, r.status]);
+      currentStatus === 'loading' || 
+      currentStatus === 'initializing';
+  }, [blockStatus, language, pythonStatus, rStatus]);
 
   const isExecutingCode = blockStatus === 'executing';
   const showRunButton = useMemo(() => 
-    isExecutable && blockStatus !== 'loading-runtime' && blockStatus !== 'executing',
-    [isExecutable, blockStatus]
+    isExecutable && !isLoadingRuntime && !isExecutingCode,
+    [isExecutable, isLoadingRuntime, isExecutingCode]
   );
   const showStopButton = useMemo(() => 
-    isExecutable && blockStatus === 'executing',
-    [isExecutable, blockStatus]
+    isExecutable && isExecutingCode,
+    [isExecutable, isExecutingCode]
   );
   const showLoadingIcon = useMemo(() => 
     isExecutable && (blockStatus === 'loading-runtime' || blockStatus === 'pending-execution'),
@@ -431,21 +455,15 @@ export function EnhancedCodeBlock({
             </div>
           </div>
         </div>
-        
-        <SyntaxHighlighter
-          style={oneDark}
-          language={language || 'text'}
-          PreTag="div" 
-          className="text-sm w-full overflow-x-auto !my-0"
-          wrapLines={true}
-          showLineNumbers={content.split('\n').length > 5}
-          customStyle={{
-            margin: 0,
-            borderRadius: '0 0 0.5rem 0.5rem',
-          }}
-        >
-          {content}
-        </SyntaxHighlighter>
+        <div className="flex border border-gray-200 rounded-b-md dark:border-gray-700 flex-col">
+          <LightweightCodeBlock
+            content={content}
+            language={language || 'text'}
+          // showLineNumbers={content.split('\n').length > 5}
+          showLineNumbers={false}
+          className="text-sm w-full !my-0"
+        />
+        </div>
         
         {(blockStatus === 'loading-runtime' || blockStatus === 'executing' || blockStatus === 'error' || blockStatus === 'pending-execution' || isDownloading || errorMessage) && (
            <div className="mt-2 p-2 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-zinc-800 text-xs text-gray-600 dark:text-gray-400">
@@ -458,7 +476,6 @@ export function EnhancedCodeBlock({
            </div>
         )}
         
-        {/* Memoized CodeOutput component */}
         <CodeOutput result={executionResult} />
 
         {downloadFilename && (

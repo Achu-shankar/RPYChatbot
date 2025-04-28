@@ -5,7 +5,7 @@ import { useChat, type Message, type CreateMessage } from '@ai-sdk/react';
 import { useParams } from 'next/navigation'; // To get projectId
 import { useQueryClient } from '@tanstack/react-query'; // <-- Import useQueryClient
 import { createClient } from '@/utils/supabase/client';
-import { CodeRuntimesProvider } from '../lib/useCodeRuntimes'; // Import the provider
+// import { CodeRuntimesProvider } from '../lib/useCodeRuntimes'; // Import the provider
 
 import MessageList from './MessageList';
 import { MultimodalInput } from './multimodal-input';
@@ -101,7 +101,7 @@ export default function ChatArea({ activeSessionId, initialMessages }: ChatAreaP
           messages={messages}
           status={status}
         /> */}
-        <CodeRuntimesProvider>
+        {/* <CodeRuntimesProvider> */}
           <Messages
             chatId={activeSessionId || ''}
             status={status}
@@ -110,7 +110,7 @@ export default function ChatArea({ activeSessionId, initialMessages }: ChatAreaP
             reload={reload}
             isReadonly={false}
           />
-        </CodeRuntimesProvider>
+        {/* </CodeRuntimesProvider> */}
         <div className="w-full max-w-5xl mx-auto px-4">
           <MultimodalInput
             key={`input-${activeSessionId}`}

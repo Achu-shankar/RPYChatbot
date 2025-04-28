@@ -7,7 +7,6 @@ import { memo, useState } from 'react';
 // import type { Vote } from '@/lib/db/schema';
 // import { DocumentToolCall, DocumentToolResult } from './document';
 import { PencilEditIcon, SparklesIcon } from '../icons';
-import { Markdown } from './archived/markdown';
 import { MemoizedMarkdown } from './MemoizedMarkdown';
 import { MessageActions } from './message-actions';
 import { PreviewAttachment } from './preview-attachment';
