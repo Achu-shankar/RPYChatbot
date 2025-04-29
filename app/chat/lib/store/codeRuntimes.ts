@@ -169,7 +169,8 @@ export const useCodeRuntimesStore = create<CodeRuntimesState & CodeRuntimesActio
     set(state => ({ r: { ...state.r, status: 'loading', error: null, instance: null } }));
     try {
       const webRInstance = new WebR({
-        baseUrl: '/webr/'
+        baseUrl: '/webr/',
+        repoUrl: '/api/r-proxy/'
       }); 
       set(state => ({ r: { ...state.r, status: 'initializing' } }));
       await webRInstance.init();
