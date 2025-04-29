@@ -59,7 +59,7 @@ import { z } from 'zod';
             system: systemPrompt,
             messages,
             maxSteps: 5,
-            toolChoice: 'required',
+            // toolChoice: 'required',
             // experimental_activeTools: ['getDspaDocs'],
             // experimental_activeTools:
             //   selectedChatModel === 'chat-model-reasoning'
