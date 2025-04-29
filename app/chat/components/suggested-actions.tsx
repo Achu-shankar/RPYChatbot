@@ -24,8 +24,8 @@ function PureSuggestedActions({ chatId, append }: SuggestedActionsProps) {
     },
     {
       title: '🔍 Explain PCA with',
-      label: `an example code in R`,
-      action: `Explain PCA with an example code in R`,
+      label: `an example code in R and python`,
+      action: `Explain PCA with an example code in R and python`,
     },
     {
       title: '🌊 How does a',
