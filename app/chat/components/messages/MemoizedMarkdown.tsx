@@ -7,6 +7,18 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic'; // Import dynamic
 import SourceCitationDisplay from './SourceCitationDisplay'; // Import the new component
 
+// Add fade-in animation style
+const fadeInStyle = `
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  .fade-in-text {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+`;
+
 // Dynamically import EnhancedCodeBlock with SSR disabled
 const EnhancedCodeBlock = dynamic(
   () => import('./enhanced-code-block').then((mod) => mod.EnhancedCodeBlock),
@@ -166,15 +178,21 @@ const MemoizedMarkdownBlock = memo(
     components: Partial<Components> // Pass components map as prop
   }) => {
     return (
-      <ReactMarkdown 
-        remarkPlugins={remarkPlugins}
-        rehypePlugins={rehypePlugins} 
-        components={components} // Use passed components
-        // Allow sourcecite tag via rehypeRaw
-        // rehypeRaw options could be configured here if needed
-      >
-        {content}
-      </ReactMarkdown>
+      <>
+        {/* Add style tag for the animation */}
+        <style jsx>{fadeInStyle}</style>
+        <div className="fade-in-text">
+          <ReactMarkdown 
+            remarkPlugins={remarkPlugins}
+            rehypePlugins={rehypePlugins} 
+            components={components} // Use passed components
+            // Allow sourcecite tag via rehypeRaw
+            // rehypeRaw options could be configured here if needed
+          >
+            {content}
+          </ReactMarkdown>
+        </div>
+      </>
     );
   },
   // Update comparison if needed, though components map should be stable per MemoizedMarkdown instance

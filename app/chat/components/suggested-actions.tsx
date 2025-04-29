@@ -12,21 +12,21 @@ interface SuggestedActionsProps {
 
 function PureSuggestedActions({ chatId, append }: SuggestedActionsProps) {
   const suggestedActions = [
+    {title: '📊 Generate a ppt on PCA',
+      label: 'using R',
+      action: 'Generate R code that creates a PowerPoint presentation about Principal Component Analysis. The code should generate slides covering PCA concepts, implementation, and visualization examples.',
+    },
     {
-      title: ' 🧠 Write a simple',
+      title: '🧠 Write a simple',
       label: 'neural network in R?',
       action: 'Write a simple neural network in R?',
     },
     {
-      title: '📊 Explain what is ',
+      title: '🔍 Explain what is ',
       label: `naive bayes`,
       action: `Explain what is naive bayes`,
     },
-    {
-      title: '🔍 Explain PCA with',
-      label: `an example code in R and python`,
-      action: `Explain PCA with an example code in R and python`,
-    },
+
     {
       title: '🌊 How does a',
       label: 'diffusion model work?',

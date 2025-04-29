@@ -259,6 +259,18 @@ export const PreviewMessage = memo(
   },
 );
 
+// Add fade-in animation style for thinking message
+const fadeInStyle = `
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  .fade-in-text {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+`;
+
 export const ThinkingMessage = () => {
   const role = 'assistant';
 
@@ -270,6 +282,7 @@ export const ThinkingMessage = () => {
       animate={{ y: 0, opacity: 1, transition: { delay: 1 } }}
       data-role={role}
     >
+      <style jsx>{fadeInStyle}</style>
       <div
         className={cx(
           'flex gap-4 group-data-[role=user]/message:px-3 w-full group-data-[role=user]/message:w-fit group-data-[role=user]/message:ml-auto group-data-[role=user]/message:max-w-2xl group-data-[role=user]/message:py-2 rounded-xl',
@@ -283,7 +296,7 @@ export const ThinkingMessage = () => {
         </div>
 
         <div className="flex flex-col gap-2 w-full">
-          <div className="flex flex-col gap-4 text-muted-foreground">
+          <div className="flex flex-col gap-4 text-muted-foreground fade-in-text">
             Hmm... I'm thinking...
           </div>
         </div>
