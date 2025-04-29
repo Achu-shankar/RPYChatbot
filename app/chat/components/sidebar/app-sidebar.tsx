@@ -36,7 +36,7 @@ export function AppSidebar() {
   }, []);
 
   return (
-    <Sidebar collapsible="icon" >
+    <Sidebar collapsible="icon" variant="inset" >
       <SidebarHeader className="pb-0">
         <div className={`flex items-center py-2 gap-2 `}>
           {/* {state !== "collapsed" && */}

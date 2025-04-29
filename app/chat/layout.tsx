@@ -35,7 +35,7 @@ export default function ChatLayout({ children }: Readonly<{
                   <AuthButton />
                 </div>
               </header>
-              <div className="flex h-[calc(100vh-5rem)] w-full overflow-hidden">
+              <div className="flex h-[calc(100vh-4rem)] w-full overflow-hidden">
                 <div className="flex-1 h-full w-full overflow-hidden">
                   {children}
                 </div>
