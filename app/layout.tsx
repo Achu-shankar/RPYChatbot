@@ -25,6 +25,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={geistSans.className} suppressHydrationWarning>
+      <head>
+        {/* Add this meta tag for CSP */}
+        <meta
+          httpEquiv="Content-Security-Policy"
+          content="connect-src 'self' https://cdn.jsdelivr.net https://*.supabase.co https://repo.r-wasm.org;"
+        />
+      </head>
       <body className="bg-background text-foreground h-screen flex flex-col">
         <ThemeProvider
           attribute="class"
