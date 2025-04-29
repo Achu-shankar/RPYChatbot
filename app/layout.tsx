@@ -29,7 +29,7 @@ export default function RootLayout({
         {/* Add this meta tag for CSP */}
         <meta
           httpEquiv="Content-Security-Policy"
-          content="connect-src 'self' https://cdn.jsdelivr.net https://*.supabase.co https://repo.r-wasm.org;"
+          content="connect-src 'self' https://cdn.jsdelivr.net https://*.supabase.co https://repo.r-wasm.org https://webr.r-wasm.org;"
         />
       </head>
       <body className="bg-background text-foreground h-screen flex flex-col">
