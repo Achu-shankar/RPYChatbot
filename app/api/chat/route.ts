@@ -2,33 +2,23 @@ import {
     type UIMessage,
     appendResponseMessages,
     createDataStreamResponse,
+    embed,
     smoothStream,
     streamText,
+    tool,
   } from 'ai';
   import { openai } from '@ai-sdk/openai';
-//   import { auth } from '@/app/(auth)/auth';
   import { systemPrompt } from '@/app/chat/lib/prompt';
-//   import {
-//     deleteChatById,
-//     getChatById,
-//     saveChat,
-//     saveMessages,
-//   } from '@/app/chat/lib/db/queries';
   import {
     generateUUID,
     getMostRecentUserMessage,
     getTrailingMessageId,
   } from '@/app/chat/lib/utils';
-  import { generateTitleFromUserMessage } from '@/app/chat/lib/actions';
-//   import { createDocument } from '@/lib/ai/tools/create-document';
-//   import { updateDocument } from '@/lib/ai/tools/update-document';
-//   import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
-//   import { getWeather } from '@/lib/ai/tools/get-weather';
-//   import { isProductionEnvironment } from '@/lib/constants';
-//   import { myProvider } from '@/lib/ai/providers';
 
 import { createClient } from '@/utils/supabase/server';
 import { saveOrUpdateChatMessages } from '@/app/chat/lib/db/queries';
+import { z } from 'zod';
+
   
   export const maxDuration = 60;
   
@@ -69,6 +59,7 @@ import { saveOrUpdateChatMessages } from '@/app/chat/lib/db/queries';
             system: systemPrompt,
             messages,
             maxSteps: 5,
+            experimental_activeTools: ['getDspaDocs'],
             // experimental_activeTools:
             //   selectedChatModel === 'chat-model-reasoning'
             //     ? []
@@ -80,15 +71,44 @@ import { saveOrUpdateChatMessages } from '@/app/chat/lib/db/queries';
             //       ],
             experimental_transform: smoothStream({ chunking: 'word' }),
             experimental_generateMessageId: generateUUID,
-            // tools: {
-            //   getWeather,
-            //   createDocument: createDocument({ session, dataStream }),
-            //   updateDocument: updateDocument({ session, dataStream }),
-            //   requestSuggestions: requestSuggestions({
-            //     session,
-            //     dataStream,
-            //   }),
-            // },
+            tools: {
+              getDspaDocs: tool({
+                description: 'Get information from your DSPA knowledge base to answer the user\'s question.',
+                parameters: z.object({
+                  query: z.string().describe('The search query to find relevant documents.'),
+                }),
+                execute: async ({ query }) => {
+                  try {
+                    // 1. Embed the query using OpenAI via AI SDK
+                    const { embedding } = await embed({
+                      model: openai.embedding('text-embedding-3-small'), // Ensure this model matches DB embeddings
+                      value: query,
+                    });
+
+                    // 2. Call Supabase RPC function with the embedding
+                    const { data, error } = await supabase.rpc('retrieve_docs', {
+                      query_embedding: embedding, // Pass the generated embedding
+                      num_docs: 5, // Keep the default or make it configurable?
+                    });
+
+                    if (error) {
+                      console.error('Supabase RPC error:', error);
+                      // Consider returning a more specific error message to the model
+                      return { error: `Failed to retrieve documents: ${error.message}` };
+                    }
+
+                    // 3. Return the retrieved documents
+                    // Ensure the returned data is serializable (usually is from Supabase)
+                    console.log(`Retrieved ${data?.length ?? 0} documents for query: "${query}"`);
+                    return { documents: data ?? [] }; // Return data under a 'documents' key
+
+                  } catch (embeddingError) {
+                    console.error('Embedding error:', embeddingError);
+                    return { error: `Failed to create embedding for the query.` };
+                  }
+                },
+              }),
+            },
             onFinish: async ({ response }) => {
               if (user?.id) {
                 try {

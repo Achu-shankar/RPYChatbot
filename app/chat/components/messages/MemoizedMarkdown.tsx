@@ -1,10 +1,11 @@
 import { marked } from 'marked';
-import { memo, useMemo, useCallback } from 'react';
+import { memo, useMemo, useCallback, useRef, useEffect } from 'react';
 import ReactMarkdown, { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm'; // Recommended plugin for tables, etc.
 import rehypeRaw from 'rehype-raw';
 import Link from 'next/link';
 import dynamic from 'next/dynamic'; // Import dynamic
+import SourceCitationDisplay from './SourceCitationDisplay'; // Import the new component
 
 // Dynamically import EnhancedCodeBlock with SSR disabled
 const EnhancedCodeBlock = dynamic(
@@ -31,6 +32,18 @@ const preprocessMarkdown = (markdown: string): string => {
   return markdown.replace(codeBlockPattern, '```$1\n');
 };
 
+// Helper to safely get node content
+const getNodeText = (node: any): string => {
+  if (!node || !node.children) return '';
+  return node.children.map((child: any) => {
+    if (child.type === 'text') {
+      return child.value;
+    }
+    // Potentially handle nested elements if needed, but keep it simple for <sourceCite>
+    return '';
+  }).join('');
+};
+
 // Helper function to parse markdown into discrete blocks
 function parseMarkdownIntoBlocks(markdown: string): string[] {
   // Use marked lexer to split content into meaningful blocks
@@ -38,12 +51,26 @@ function parseMarkdownIntoBlocks(markdown: string): string[] {
   return tokens.map(token => token.raw);
 }
 
-// Components for ReactMarkdown
-// @ts-ignore - We need to ignore type checking for components due to ReactMarkdown's type limitations
-const markdownComponents: Partial<Components> = {
+// Function to create component map, including the citation counter
+const createMarkdownComponents = (citationCounter: React.MutableRefObject<number>): Partial<Components> => ({
   // @ts-ignore - The inline prop is passed by ReactMarkdown but not in type defs
   code: EnhancedCodeBlock, // Use the dynamically imported component
   
+  // @ts-ignore - Custom tag handling requires ignoring some types
+  sourcecite: ({ node, ...props }) => { 
+    const jsonContent = getNodeText(node);
+    if (!jsonContent) {
+      return <span className="text-red-500">[Empty SourceCite Tag]</span>;
+    }
+    citationCounter.current += 1; // Increment counter
+    return (
+      <SourceCitationDisplay 
+        jsonContent={jsonContent}
+        citationNumber={citationCounter.current} 
+      />
+    );
+  },
+
   // Custom link handling
   // Keep all other component renderers the same
   ol: ({ node, children, ...props }) => {
@@ -129,23 +156,32 @@ const markdownComponents: Partial<Components> = {
       </h6>
     );
   }
-};
+});
 
 // Optimized deeply memoized component for rendering a single markdown block
 const MemoizedMarkdownBlock = memo(
-  ({ content, blockId }: { content: string, blockId: string }) => {
+  ({ content, blockId, components }: { 
+    content: string, 
+    blockId: string, 
+    components: Partial<Components> // Pass components map as prop
+  }) => {
     return (
       <ReactMarkdown 
         remarkPlugins={remarkPlugins}
         rehypePlugins={rehypePlugins} 
-        components={markdownComponents}
+        components={components} // Use passed components
+        // Allow sourcecite tag via rehypeRaw
+        // rehypeRaw options could be configured here if needed
       >
         {content}
       </ReactMarkdown>
     );
   },
-  // Strict equality comparison for props
-  (prevProps, nextProps) => prevProps.content === nextProps.content && prevProps.blockId === nextProps.blockId
+  // Update comparison if needed, though components map should be stable per MemoizedMarkdown instance
+  (prevProps, nextProps) => 
+    prevProps.content === nextProps.content && 
+    prevProps.blockId === nextProps.blockId &&
+    prevProps.components === nextProps.components // Add components to comparison
 );
 
 MemoizedMarkdownBlock.displayName = 'MemoizedMarkdownBlock';
@@ -153,8 +189,19 @@ MemoizedMarkdownBlock.displayName = 'MemoizedMarkdownBlock';
 // Main component that splits content and renders memoized blocks
 export const MemoizedMarkdown = memo(
   ({ content, id }: { content: string; id: string }) => {
-    // Split content into blocks using marked tokenizer - memoized to prevent recalculation
+    // Split content into blocks using marked tokenizer - memoized
     const blocks = useMemo(() => parseMarkdownIntoBlocks(content), [content]);
+    
+    // Ref to keep track of citation numbers across blocks within a single message
+    const citationCounter = useRef(0);
+    
+    // Reset counter when content/id changes (new message) using useEffect
+    useEffect(() => {
+        citationCounter.current = 0;
+    }, [content, id]);
+    
+    // Create the components map once per render, including the counter ref
+    const components = useMemo(() => createMarkdownComponents(citationCounter), []); // citationCounter ref is stable
     
     // Create a memoized callback for creating block IDs
     const getBlockId = useCallback((index: number) => `${id}-block-${index}`, [id]);
@@ -165,6 +212,7 @@ export const MemoizedMarkdown = memo(
           <MemoizedMarkdownBlock 
             content={block} 
             blockId={getBlockId(index)}
+            components={components} // Pass the components map
             key={getBlockId(index)} 
           />
         ))}

@@ -158,6 +158,12 @@ const PurePreviewMessage = ({
 
                 if (state === 'call') {
                   const { args } = toolInvocation;
+                  return(
+                    <div key={toolCallId}>
+                      <p className='text-sm text-muted-foreground'>Searching DSPA knowledge base for {args.query}</p>
+                    </div>
+                  )
+
 
                   // return (
                   //   <div
@@ -189,6 +195,11 @@ const PurePreviewMessage = ({
 
                 if (state === 'result') {
                   const { result } = toolInvocation;
+                  return(
+                    <div key={toolCallId}>
+                      <p className='text-sm text-muted-foreground'>Found {result.length} relevant documents ....</p>
+                    </div>
+                  )
 
                   // return (
                   //   <div key={toolCallId}>
